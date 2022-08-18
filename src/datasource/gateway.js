@@ -212,6 +212,7 @@ class GatewayClient {
     'getNode',
     'getAccountTxs',
     'sendRawTx',
+    'setFee'
   ]
 
   /**

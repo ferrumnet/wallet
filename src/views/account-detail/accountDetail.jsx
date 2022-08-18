@@ -16,6 +16,8 @@ import AnimatedLogo from "../../components/animated-logo/animatedLogo";
 import { useUser } from "../../context/userContext";
 import TransactionsTable from "../../components/transactionsTable/transactionsTable";
 import ExportKeyfile from "../../components/modals/export-keyfile/exportKeyfile";
+import socketIOClient from "socket.io-client";
+const ENDPOINT = "http://127.0.0.1:4001";
 
 const dataSource = getDataSource();
 
@@ -41,6 +43,7 @@ export default function AccountDetail() {
   const [priceProvider, setPriceProvider] = useState("");
   const [priceProviderLink, setPriceProviderLink] = useState("");
   const [isExportKeyfileVisible, setIsExportKeyfileVisible] = useState(false);
+  const [socket, setSocket] =useState(null);
 
   const increaseMaxTxListCount = useCallback(() => {
     if (maxTxListCount < Number(Config.MAX_TRANSACTION_LIST_COUNT)) {
@@ -96,6 +99,26 @@ export default function AccountDetail() {
         : stdTx.msg.value.amount / 1000000;
       return { type: "sent", amount: sendAmount };
     }
+  }, []);
+
+  useEffect(() => {
+    const socket = socketIOClient(ENDPOINT);
+    setSocket(socket);
+    socket.on("chat message", data => {
+      if (data?.amount) {
+        const { 
+          amount = Number(data?.amount),
+          memo = '',
+          reciever = ''
+        } = data;
+
+        console.log(data, 'datatata')
+
+        history.push({
+          pathname: "/send", state : { amount, reciever, memo }
+        });
+      }
+    });
   }, []);
 
   const updateTransactionList = useCallback(

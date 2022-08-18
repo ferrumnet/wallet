@@ -22,6 +22,8 @@
     "reactjs-popup": "^1.5.0",
     "secure-ls": "^1.2.6",
     "simple-react-modal": "^0.5.1",
+    "socket.io": "^4.5.1",
+    "socket.io-client": "^4.5.1",
     "styled-components": "^5.1.0",
     "use-viewport": "^0.2.0"
   },

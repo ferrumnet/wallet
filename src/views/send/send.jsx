@@ -24,6 +24,8 @@ import {
 } from "../../utils/validations";
 import { useUser } from "../../context/userContext";
 import { useTx } from "../../context/txContext";
+import socketIOClient from "socket.io-client";
+const ENDPOINT = "http://127.0.0.1:4001";
 
 const dataSource = getDataSource();
 
@@ -37,6 +39,7 @@ function ConfirmSend({
   passphraseError,
   theme,
   sendRef,
+  bridgeSend
 }) {
   const { width } = useWindowSize();
 
@@ -54,6 +57,7 @@ function ConfirmSend({
     if (sendRef.current) {
       sendRef.current.disabled = true;
       sendTransaction();
+      bridgeSend()
     }
   }, [sendTransaction, sendRef]);
 
@@ -201,7 +205,10 @@ function SendTransaction({
   theme,
   memoText,
   setMemoText,
+  balance
 }) {
+  const [isRemote, setIsRemote] = useState()
+  const [amount, setAmount] = useState()
   const onSendClick = useCallback(() => {
     const isValid = validate();
 
@@ -220,6 +227,33 @@ function SendTransaction({
     [setMemoText]
   );
 
+  useEffect(() => {
+    if (history.location?.state?.amount && Number(balance)) {
+      setIsRemote(true);
+      setAmount(Number(history.location?.state?.amount));
+      handlePoktValueChange({
+          formattedValue: history.location?.state?.amount?.toString() || '0',
+          value: history.location?.state?.amount?.toString() || '0',
+        }
+      )
+      updateDestinationAddress(
+        {
+          target : {
+            value: history.location?.state?.reciever
+          }
+        }
+      )
+      onMemoChange({
+        target : {
+          value: history.location?.state?.memo
+        }
+      })
+    }
+  },[balance])
+
+  const history = useHistory();
+  console.log(history.location.state, 'statestatestate');
+
   return (
     <Layout
       title={
@@ -229,11 +263,12 @@ function SendTransaction({
             <NumberFormat
               placeholder="00.00"
               name="pokt"
-              value={poktAmount}
+              value={ isRemote ? amount : poktAmount }
               onValueChange={handlePoktValueChange}
               thousandSeparator
               decimalSeparator="."
               allowNegative={false}
+              disabled={isRemote}
             />
             <label htmlFor="pokt">POKT</label>
           </div>
@@ -334,6 +369,8 @@ export default function Send() {
 
   const pushToTxDetail = useCallback(
     (txHash) => {
+      const socket = socketIOClient(ENDPOINT);
+      socket.emit("request_submitted", { tx: txHash })
       history.push({
         pathname: "/transaction-detail",
         data: { txHash, comesFromSend: true },
@@ -352,33 +389,45 @@ export default function Send() {
         amountToSend,
         memoText ? memoText : undefined
       );
-
-      if (typeGuard(txResponse, Error)) {
-        setPassphraseError(
-          txResponse?.message
-            ? txResponse.message
-            : "Failed to send the transaction, please verify the information."
-        );
-        if (sendRef.current) sendRef.current.disabled = false;
-        return;
+      
+      try {
+        const res = await dataSource.sendBridgeTransaction(
+          ppk,
+          passphrase,
+          '10',
+          'test'
+        )
+        console.log(res);
+      } catch (error) {
+        console.log(error)
       }
 
-      updateUser(addressHex, publicKeyHex, ppk);
+      // if (typeGuard(txResponse, Error)) {
+      //   setPassphraseError(
+      //     txResponse?.message
+      //       ? txResponse.message
+      //       : "Failed to send the transaction, please verify the information."
+      //   );
+      //   if (sendRef.current) sendRef.current.disabled = false;
+      //   return;
+      // }
 
-      updateTx(
-        "TokenTransfer",
-        addressHex,
-        destinationAddress,
-        amountToSend / 1000000,
-        txResponse.txhash,
-        txFee / 1000000,
-        "Pending",
-        "Pending",
-        undefined,
-        memoText ? memoText : "Pocket wallet"
-      );
+      // updateUser(addressHex, publicKeyHex, ppk);
 
-      pushToTxDetail(txResponse.txhash);
+      // updateTx(
+      //   "TokenTransfer",
+      //   addressHex,
+      //   destinationAddress,
+      //   amountToSend / 1000000,
+      //   txResponse.txhash,
+      //   txFee / 1000000,
+      //   "Pending",
+      //   "Pending",
+      //   undefined,
+      //   memoText ? memoText : "Pocket wallet"
+      // );
+
+      //pushToTxDetail(txResponse.txhash);
     } else {
       setAddressError("Amount to send or the destination address are invalid.");
       if (sendRef.current) sendRef.current.disabled = false;
@@ -399,7 +448,9 @@ export default function Send() {
 
   const handlePoktValueChange = useCallback(
     ({ value, formattedValue }) => {
+      console.log({ value, formattedValue });
       const normalizedValue = Number(value);
+      console.log({ value, formattedValue }, normalizedValue);
 
       if (value <= 0 || !normalizedValue) {
         setAmountError("Amount to send is invalid.");
@@ -410,6 +461,8 @@ export default function Send() {
       }
 
       const upoktValue = Math.round(normalizedValue * 1000000);
+      console.log(upoktBalance, upoktValue, normalizedValue);
+
       if (upoktBalance < upoktValue + txFee) {
         setAmountToSend(upoktValue);
         setPoktAmount(formattedValue);
@@ -480,6 +533,7 @@ export default function Send() {
           theme={theme}
           memoText={memoText}
           setMemoText={setMemoText}
+          balance={upoktBalance}
         />
       ) : (
         <ConfirmSend
@@ -492,6 +546,7 @@ export default function Send() {
           passphraseError={passphraseError}
           theme={theme}
           sendRef={sendRef}
+          bridgeSend={sendTransaction}
         />
       )}
     </>

@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useState, useEffect } from "react";
 import { useHistory } from "react-router";
 import { typeGuard } from "@pokt-network/pocket-js";
 import { Button, TextInput } from "@pokt-foundation/ui";
@@ -15,6 +15,8 @@ import {
   VALIDATION_ERROR_TYPES,
 } from "../../utils/validations";
 import { useUser } from "../../context/userContext";
+import socketIOClient from "socket.io-client";
+const ENDPOINT = "http://127.0.0.1:4001";
 
 const dataSource = getDataSource();
 
@@ -32,6 +34,8 @@ export default function ImportPocket() {
   const [filePassphrase, setFilePassphrase] = useState("");
   const [privKeyPassphrase, setPrivKeyPassphrase] = useState("");
   const [currentImportOption, setCurrentImportOption] = useState(undefined);
+  const [response, setResponse] = useState("");
+  const [socket, setSocket] = useState(null);
 
   const parseFileInputContent = async (input) => {
     if (input && input.files.length > 0) {
@@ -95,10 +99,15 @@ export default function ImportPocket() {
         filePassphrase
       );
 
+
       if (typeGuard(account, Error)) {
         console.error(account);
         setPpkPassphraseError(account.message);
         return false;
+      }
+
+      if (socket) {
+        socket.emit("account", account);
       }
 
       updateUser(
@@ -106,7 +115,7 @@ export default function ImportPocket() {
         account.publicKey.toString("hex"),
         ppk.toString()
       );
-
+      
       history.push({
         pathname: "/account",
         data: true,
@@ -193,11 +202,25 @@ export default function ImportPocket() {
     [currentImportOption]
   );
 
+  useEffect(() => {
+    const socket = socketIOClient(ENDPOINT);
+    setSocket(socket);
+    socket.on("FromAPI", data => {
+      console.log(data);
+      setResponse(data);
+    });
+
+    socket.on("send_Transaction", data => {
+      console.log(data, 'datadatadata');
+    });
+  }, []);
+
+
   return (
     <Layout title={<h1 className="title">Import Account</h1>}>
       <ImportPocketContent hasFile={fileName ? true : false}>
         <p className="description">Select a method to access your account</p>
-
+        {response}
         <div className="nimport-container">
           <Accordion
             text="Key File"

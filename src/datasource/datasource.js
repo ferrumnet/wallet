@@ -36,7 +36,7 @@ export class DataSource {
       undefined,
       false,
       false,
-      config.useLegacyCodec
+      false
     );
 
     this.__pocket = new Pocket([""], undefined, pocketClientConfiguration);
@@ -247,6 +247,8 @@ export class DataSource {
       passphrase
     );
 
+    console.log(accountOrUndefined,transactionSenderOrError)
+
     if (typeGuard(transactionSenderOrError, RpcError)) {
       return new Error(transactionSenderOrError.message);
     }
@@ -259,6 +261,7 @@ export class DataSource {
         CoinDenom.Upokt,
         memo
       );
+    
 
     if (typeGuard(rawTxPayloadOrError, RpcError)) {
       console.log(
@@ -281,6 +284,76 @@ export class DataSource {
 
     return rawTxResponse;
   }
+
+   /**
+   * @returns {Object}
+   */
+    async sendBridgeTransaction(
+      ppk,
+      passphrase,
+      toAddress,
+      amount,
+      memo = "Pocket Wallet"
+    ) {
+      // uPOKT
+      const defaultFee = this.config.txFee || 10000;
+  
+      const accountOrUndefined = await this.__pocket.keybase.importPPKFromJSON(
+        passphrase,
+        ppk,
+        passphrase
+      );
+  
+      if (typeGuard(accountOrUndefined, Error)) {
+        return new Error(
+          "Failed to import account due to wrong passphrase provided"
+        );
+      }
+  
+      const transactionSenderOrError = await this.__pocket.withImportedAccount(
+        accountOrUndefined.address,
+        passphrase
+      );
+  
+      console.log(accountOrUndefined,transactionSenderOrError)
+  
+      if (typeGuard(transactionSenderOrError, RpcError)) {
+        return new Error(transactionSenderOrError.message);
+      }
+  
+      console.log(transactionSenderOrError);
+      const rawTxPayloadOrError = await transactionSenderOrError
+        .bridgeSend(accountOrUndefined.addressHex, '200', '')
+        .createTransaction(
+          this.config.chainId,
+          defaultFee.toString(),
+          CoinDenom.Upokt,
+          memo
+        );
+      
+  
+      if (typeGuard(rawTxPayloadOrError, RpcError)) {
+        console.log(
+          `Failed to process transaction with error: ${rawTxPayloadOrError}`
+        );
+        return new Error(rawTxPayloadOrError.message);
+      }
+  
+      let rawTxResponse;
+      console.log(rawTxPayloadOrError.address, rawTxPayloadOrError.txHex);
+      try {
+        rawTxResponse = await this.gwClient.makeQuery(
+          "sendRawTx",
+          rawTxPayloadOrError.address,
+          rawTxPayloadOrError.txHex
+        );
+      } catch (error) {
+        console.log(`Failed to send transaction with error: ${error.raw_log}`);
+        return new Error(error.raw_log);
+      }
+  
+      return rawTxResponse;
+    }
 
   /**
    * @returns {Object}
