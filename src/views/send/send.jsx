@@ -25,7 +25,7 @@ import {
 import { useUser } from "../../context/userContext";
 import { useTx } from "../../context/txContext";
 import socketIOClient from "socket.io-client";
-const ENDPOINT = "http://127.0.0.1:4001";
+const ENDPOINT = "http://127.0.0.1:3003";
 
 const dataSource = getDataSource();
 
@@ -56,7 +56,6 @@ function ConfirmSend({
   const onSendClick = useCallback(() => {
     if (sendRef.current) {
       sendRef.current.disabled = true;
-      sendTransaction();
       bridgeSend()
     }
   }, [sendTransaction, sendRef]);
@@ -382,13 +381,13 @@ export default function Send() {
 
   const sendTransaction = useCallback(async () => {
     if (passphrase && destinationAddress && ppk && amountToSend > 0) {
-      const txResponse = await dataSource.sendTransaction(
-        ppk,
-        passphrase,
-        destinationAddress,
-        amountToSend,
-        memoText ? memoText : undefined
-      );
+      // const txResponse = await dataSource.sendTransaction(
+      //   ppk,
+      //   passphrase,
+      //   destinationAddress,
+      //   amountToSend,
+      //   memoText ? memoText : undefined
+      // );
       
       try {
         const res = await dataSource.sendBridgeTransaction(

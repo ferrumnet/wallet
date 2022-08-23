@@ -227,6 +227,7 @@ export class DataSource {
     amount,
     memo = "Pocket Wallet"
   ) {
+    console.log("called here");
     // uPOKT
     const defaultFee = this.config.txFee || 10000;
 
@@ -246,8 +247,6 @@ export class DataSource {
       accountOrUndefined.address,
       passphrase
     );
-
-    console.log(accountOrUndefined,transactionSenderOrError)
 
     if (typeGuard(transactionSenderOrError, RpcError)) {
       return new Error(transactionSenderOrError.message);
@@ -314,16 +313,13 @@ export class DataSource {
         accountOrUndefined.address,
         passphrase
       );
-  
-      console.log(accountOrUndefined,transactionSenderOrError)
-  
+    
       if (typeGuard(transactionSenderOrError, RpcError)) {
         return new Error(transactionSenderOrError.message);
       }
   
-      console.log(transactionSenderOrError);
       const rawTxPayloadOrError = await transactionSenderOrError
-        .bridgeSend(accountOrUndefined.addressHex, '200', '')
+        .bridgeSend(accountOrUndefined.addressHex, '200', 'upokt')
         .createTransaction(
           this.config.chainId,
           defaultFee.toString(),
